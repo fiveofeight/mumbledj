@@ -45,9 +45,22 @@ config.SKIP_RATIO = 0.5
 -- COMMAND CONFIGURATION
 -------------------------
 
+-- Alias used for stop command.
+-- DEFAULT VALUE: "stop"
+config.STOP_ALIAS = "stop"
+
+-- Alias used for soundboard command.
+-- DEFAULT VALUE: "sb"
+config.SOUNDBOARD_ALIAS = "sb"
+
+-- Alias used for random soundclip command.
+-- DEFAULT VALUE: "random"
+config.RANDOM_ALIAS = "random"
+
 -- Alias used for add command.
 -- DEFAULT VALUE: "add"
 config.ADD_ALIAS = "add"
+
 
 -- Alias used for skip command.
 -- DEFAULT VALUE: "skip"
@@ -81,6 +94,14 @@ config.ENABLE_ADMINS = true
 -- EXAMPLE:
 -- 	config.ADMINS = {"Matt", "Matthieu"}
 config.ADMINS = {"Matt", "Matthieu"}
+
+-- Make sb an admin command?
+-- DEFAULT VALUE: false
+config.ADMIN_SOUNDBOARD = false
+
+-- Make stop an admin command?
+-- DEFAULT VALUE: false
+config.ADMIN_STOP = false
 
 -- Make add an admin command?
 -- DEFAULT VALUE: false

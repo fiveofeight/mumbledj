@@ -9,6 +9,7 @@
 
 local config = require("config")
 local deque = require("deque")
+local soundlist = require("soundlist")
 
 -- Connects to Mumble server.
 function piepan.onConnect()
@@ -44,9 +45,57 @@ function parse_command(message)
 	else
 		command = string.sub(message.text, 2)
 	end
-	
+    
+    -- Soundboard command
+    if command == config.SOUNDBOARD_ALIAS then
+		local has_permission = check_permissions(config.ADMIN_SOUNDBOARD, message.user.name)
+		
+		if has_permission then
+            if not piepan.Audio.isPlaying() then
+                if config.OUTPUT then 
+                    print(message.user.name .. " has requested " .. argument .. " to be played.")
+                    local message = string.format("<b>" .. message.user.name .. "</b> has requested " .. argument .. ".")
+                    piepan.me.channel:send(message)
+                    soundboard(argument)
+                end
+            end
+		else
+			message.user:send(config.NO_PERMISSION_MSG)
+		end
+    --Random soundboard
+    elseif command == config.RANDOM_ALIAS then
+		local has_permission = check_permissions(config.ADMIN_SOUNDBOARD, message.user.name)
+		
+		if has_permission then
+            if not piepan.Audio.isPlaying() then
+	     math.randomseed( os.time() )
+              snumber = math.random(1, #soundlist.soundindex)
+		sindex = soundlist.soundindex[snumber]
+		print (snumber)
+                if config.OUTPUT then 
+                    print(message.user.name .. " has randomly played " .. sindex .. ".")
+                    local message = string.format("<b>" .. message.user.name .. "</b> has randomly played ".. sindex ..".")
+                    piepan.me.channel:send(message)
+                    soundboard(sindex)
+                end
+            end
+		else
+			message.user:send(config.NO_PERMISSION_MSG)
+		end
+    -- Stop command
+    elseif command == config.STOP_ALIAS then
+		local has_permission = check_permissions(config.ADMIN_STOP, message.user.name)
+		
+		if has_permission then
+			if config.OUTPUT then 
+				print(message.user.name .. " has stopped the queue.")
+				stop_song(argument, message.user.name)
+			end
+		else
+			message.user:send(config.NO_PERMISSION_MSG)
+		end
 	-- Add command
-	if command == config.ADD_ALIAS then
+	elseif command == config.ADD_ALIAS then
 		local has_permission = check_permissions(config.ADMIN_ADD, message.user.name)
 		
 		if has_permission then
@@ -215,6 +264,18 @@ end
 
 local song_queue = deque.new()
 local skippers = {}
+
+function soundboard(soundbyte)
+    local soundFile = soundlist.prefix .. soundlist.sounds[soundbyte]
+    
+    piepan.me.channel:play(soundFile)
+end
+
+function stop_song()
+    song_queue:remove_right()
+	reset_skips()
+    piepan.Audio.stop()
+end
 
 -- Begins the process of adding a new song to the song queue.
 function add_song(url, username)
