@@ -44,8 +44,7 @@ function parse_command(message)
 		argument = string.sub(message.text, string.find(message.text, ' ') + 1)
 	else
 		command = string.sub(message.text, 2)
-	end
-    
+	end    
     -- Soundboard command
     if command == config.SOUNDBOARD_ALIAS then
 		local has_permission = check_permissions(config.ADMIN_SOUNDBOARD, message.user.name)
@@ -71,7 +70,6 @@ function parse_command(message)
 	     math.randomseed( os.time() )
               snumber = math.random(1, #soundlist.soundindex)
 		sindex = soundlist.soundindex[snumber]
-		print (snumber)
                 if config.OUTPUT then 
                     print(message.user.name .. " has randomly played " .. sindex .. ".")
                     local message = string.format("<b>" .. message.user.name .. "</b> has randomly played ".. sindex ..".")

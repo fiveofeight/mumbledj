@@ -61,7 +61,6 @@ config.RANDOM_ALIAS = "random"
 -- DEFAULT VALUE: "add"
 config.ADD_ALIAS = "add"
 
-
 -- Alias used for skip command.
 -- DEFAULT VALUE: "skip"
 config.SKIP_ALIAS = "skip"
