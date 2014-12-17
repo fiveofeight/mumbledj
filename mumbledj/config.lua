@@ -59,7 +59,7 @@ config.RANDOM_ALIAS = "random"
 
 -- Alias used for add command.
 -- DEFAULT VALUE: "add"
-config.ADD_ALIAS = "add"
+config.ADD_ALIAS = "yt"
 
 -- Alias used for skip command.
 -- DEFAULT VALUE: "skip"
@@ -144,6 +144,9 @@ config.CHANNEL_DOES_NOT_EXIST_MSG = "The channel you specified does not exist."
 -- Message shown to users when they attempt to add an invalid URL to the queue.
 config.INVALID_URL_MSG = "The URL you submitted does not match the required format. Either you did not provide a YouTube URL, or an error occurred during the downloading & encoding process."
 
+-- Message shown to users when they attempt to add an region restricted video to the queue.
+config.REGION_RESTRICTED_MSG = "This video is not available in your country."
+
 -- Message shown to users when they attempt to use the stop command when no music is playing.
 config.NO_MUSIC_PLAYING_MSG = "There is no music playing at the moment."
 
@@ -190,5 +193,8 @@ config.USER_SKIP_HTML = [[
 config.SONG_SKIPPED_HTML = [[
 	The number of votes required for a skip has been met. <b>Skipping song!</b>
 ]]
+
+-- The country that the server is located in.
+config.COUNTRY = "US"
 
 return config

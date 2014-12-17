@@ -9,7 +9,7 @@
 
 local config = require("config")
 local deque = require("deque")
-local soundlist = require("soundlist")
+local soundboard = require("soundlist")
 
 -- Connects to Mumble server.
 function piepan.onConnect()
@@ -44,7 +44,8 @@ function parse_command(message)
 		argument = string.sub(message.text, string.find(message.text, ' ') + 1)
 	else
 		command = string.sub(message.text, 2)
-	end    
+	end
+    
     -- Soundboard command
     if command == config.SOUNDBOARD_ALIAS then
 		local has_permission = check_permissions(config.ADMIN_SOUNDBOARD, message.user.name)
@@ -53,7 +54,7 @@ function parse_command(message)
             if not piepan.Audio.isPlaying() then
                 if config.OUTPUT then 
                     print(message.user.name .. " has requested " .. argument .. " to be played.")
-                    local message = string.format("<b>" .. message.user.name .. "</b> has requested " .. argument .. ".")
+                    local message = string.format("<b>" .. message.user.name .. "</b> has reuqested " .. argument .. ".")
                     piepan.me.channel:send(message)
                     soundboard(argument)
                 end
@@ -68,8 +69,9 @@ function parse_command(message)
 		if has_permission then
             if not piepan.Audio.isPlaying() then
 	     math.randomseed( os.time() )
-              snumber = math.random(1, #soundlist.soundindex)
-		sindex = soundlist.soundindex[snumber]
+              snumber = math.random(1, #soundindex)
+		sindex = soundindex[snumber]
+		print (snumber)
                 if config.OUTPUT then 
                     print(message.user.name .. " has randomly played " .. sindex .. ".")
                     local message = string.format("<b>" .. message.user.name .. "</b> has randomly played ".. sindex ..".")
@@ -99,7 +101,10 @@ function parse_command(message)
 		if has_permission then
 			if config.OUTPUT then 
 				print(message.user.name .. " has added a song to the queue.")
-				if not add_song(argument, message.user.name) then
+				local youtube = add_song(argument, message.user.name)
+                if youtube == "region_restricted" then
+                    message.user:send(config.REGION_RESTRICTED_MSG)
+				else
 					message.user:send(config.INVALID_URL_MSG)
 				end
 			end
@@ -264,7 +269,7 @@ local song_queue = deque.new()
 local skippers = {}
 
 function soundboard(soundbyte)
-    local soundFile = soundlist.prefix .. soundlist.sounds[soundbyte]
+    local soundFile = prefix .. sounds[soundbyte]
     
     piepan.me.channel:play(soundFile)
 end
@@ -290,10 +295,11 @@ function add_song(url, username)
 		if video_id ~= nil and string.len(video_id) < 20 then
 			return get_youtube_info(video_id, username)
 		else
-			return false
+			return "invalid_url"
 		end
 	end
 end
+
 
 -- Retrieves the metadata for the specified YouTube video via the gdata API.
 function get_youtube_info(id, username)
@@ -304,21 +310,29 @@ function get_youtube_info(id, username)
 		wget -q -O - 'http://gdata.youtube.com/feeds/api/videos/%s?v=2&alt=jsonc' |
 		jshon -Q -e data -e title -u -p -e duration -u -p -e thumbnail -e hqDefault -u
 	]]
+	local cmd2 = [[
+		wget -q -O - 'http://gdata.youtube.com/feeds/api/videos/%s?v=2&alt=jsonc' |
+		jshon -Q -e data -e restrictions -e 0 -e countries -u
+	]]
 	local jshon = io.popen(string.format(cmd, id))
+	local jshon2 = io.popen(string.format(cmd2, id))
 	local name = jshon:read()
 	local duration = jshon:read()
 	local thumbnail = jshon:read()
-	if name == nil or duration == nil then
-		return false
+	local restrictions = jshon2:read()
+	if restrictions ~= nil and string.find(restrictions, config.COUNTRY) then
+		return "region_restricted"
+	elseif name == nil or duration == nil then
+		return "invalid_url"
+	else
+		return youtube_info_completed({
+			id = id,
+			title = name,
+			duration = string.format("%d:%02d", duration / 60, duration % 60),
+			thumbnail = thumbnail,
+			username = username
+		})
 	end
-	
-	return youtube_info_completed({
-		id = id,
-		title = name,
-		duration = string.format("%d:%02d", duration / 60, duration % 60),
-		thumbnail = thumbnail,
-		username = username
-	})
 end
 
 -- Notifies the channel that a song has been added to the queue, and plays the
