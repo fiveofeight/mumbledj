@@ -9,7 +9,7 @@
 
 local config = require("config")
 local deque = require("deque")
-local soundboard = require("soundlist")
+local soundlist = require("soundlist")
 
 -- Connects to Mumble server.
 function piepan.onConnect()
@@ -54,7 +54,7 @@ function parse_command(message)
             if not piepan.Audio.isPlaying() then
                 if config.OUTPUT then 
                     print(message.user.name .. " has requested " .. argument .. " to be played.")
-                    local message = string.format("<b>" .. message.user.name .. "</b> has reuqested " .. argument .. ".")
+                    local message = string.format("<b>" .. message.user.name .. "</b> has requested " .. argument .. ".")
                     piepan.me.channel:send(message)
                     soundboard(argument)
                 end
@@ -69,8 +69,8 @@ function parse_command(message)
 		if has_permission then
             if not piepan.Audio.isPlaying() then
 	     math.randomseed( os.time() )
-              snumber = math.random(1, #soundindex)
-		sindex = soundindex[snumber]
+              snumber = math.random(1, #soundlist.soundindex)
+		sindex = soundlist.soundindex[snumber]
 		print (snumber)
                 if config.OUTPUT then 
                     print(message.user.name .. " has randomly played " .. sindex .. ".")
@@ -104,7 +104,7 @@ function parse_command(message)
 				local youtube = add_song(argument, message.user.name)
                 if youtube == "region_restricted" then
                     message.user:send(config.REGION_RESTRICTED_MSG)
-				else
+				elseif youtube == "invalid_url" then
 					message.user:send(config.INVALID_URL_MSG)
 				end
 			end
@@ -205,7 +205,7 @@ end
 
 -- Performs functions that allow the bot to safely exit.
 function kill()
-	os.remove("song.ogg")
+	os.remove("song.m4a")
 	os.remove("song-converted.ogg")
 	os.remove(".video_fail")
 	piepan.disconnect()
@@ -269,7 +269,7 @@ local song_queue = deque.new()
 local skippers = {}
 
 function soundboard(soundbyte)
-    local soundFile = prefix .. sounds[soundbyte]
+    local soundFile = soundlist.prefix .. soundlist.sounds[soundbyte]
     
     piepan.me.channel:play(soundFile)
 end
@@ -304,7 +304,7 @@ end
 -- Retrieves the metadata for the specified YouTube video via the gdata API.
 function get_youtube_info(id, username)
 	if id == nil then
-		return false
+		return "invalid_url"
 	end
 	local cmd = [[
 		wget -q -O - 'http://gdata.youtube.com/feeds/api/videos/%s?v=2&alt=jsonc' |
@@ -339,7 +339,7 @@ end
 -- song if it is the first one in the queue.
 function youtube_info_completed(info)
 	if info == nil then
-		return false
+		return "invalid_url"
 	end
 	
 	song_queue:push_right(info)

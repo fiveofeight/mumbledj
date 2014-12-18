@@ -59,7 +59,7 @@ config.RANDOM_ALIAS = "random"
 
 -- Alias used for add command.
 -- DEFAULT VALUE: "add"
-config.ADD_ALIAS = "yt"
+config.ADD_ALIAS = "add"
 
 -- Alias used for skip command.
 -- DEFAULT VALUE: "skip"
