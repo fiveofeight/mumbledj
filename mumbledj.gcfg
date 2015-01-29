@@ -37,7 +37,7 @@ HighestVolume = 0.8
 
 # Alias used for add command
 # DEFAULT VALUE: "add"
-AddAlias = "yt"
+AddAlias = "add"
 
 # Alias used for skip command
 # DEFAULT VALUE: "skip"
