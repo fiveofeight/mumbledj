@@ -86,7 +86,7 @@ func parseCommand(user *gumble.User, username, command string) {
 	// Random command
 	case dj.conf.Aliases.RandomAlias:
 		if dj.HasPermission(username, dj.conf.Permissions.AdminRandom)	{
-			rand.Seed(time.Now().Unix())
+			rand.Seed(time.Now().UnixNano())
 			//for _, sclipz := range dj.conf.Permissions.SoundList {
 				//if username == adminName {
 					//return true
