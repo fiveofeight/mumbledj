@@ -24,6 +24,7 @@ type Song struct {
 	submitter    string
 	title        string
 	youtubeId    string
+	youtubeTime  string
 	duration     string
 	thumbnailUrl string
 	skippers     []string
@@ -33,7 +34,7 @@ type Song struct {
 
 // Returns a new Song type. Before returning the new type, the song's metadata is collected
 // via the YouTube Gdata API.
-func NewSong(user, id string, playlist *Playlist) (*Song, error) {
+func NewSong(user, id string, time string, playlist *Playlist) (*Song, error) {
 	jsonUrl := fmt.Sprintf("http://gdata.youtube.com/feeds/api/videos/%s?v=2&alt=jsonc", id)
 	jsonString := ""
 
@@ -64,6 +65,7 @@ func NewSong(user, id string, playlist *Playlist) (*Song, error) {
 		submitter:    user,
 		title:        videoTitle,
 		youtubeId:    id,
+		youtubeTime:  time,
 		duration:     videoDuration,
 		thumbnailUrl: videoThumbnail,
 		playlist:     playlist,
@@ -85,7 +87,7 @@ func (s *Song) Download() error {
 // Plays the song. Once the song is playing, a notification is displayed in a text message that features the video thumbnail, URL, title,
 // duration, and submitter.
 func (s *Song) Play() {
-	if err := dj.audioStream.Play(fmt.Sprintf("%s/.mumbledj/songs/%s.m4a", dj.homeDir, s.youtubeId), dj.queue.OnSongFinished); err != nil {
+	if err := dj.audioStream.Play(fmt.Sprintf("%s/.mumbledj/songs/%s.m4a", dj.homeDir, s.youtubeId), s.youtubeTime, dj.queue.OnSongFinished); err != nil {
 		panic(err)
 	} else {
 		if s.playlist == nil {

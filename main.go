@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"github.com/layeh/gopus"
 	"github.com/layeh/gumble/gumble"
-	"github.com/layeh/gumble/gumble_ffmpeg"
 	"github.com/layeh/gumble/gumbleutil"
 	"os"
 	"os/user"
@@ -27,7 +26,7 @@ type mumbledj struct {
 	defaultChannel string
 	conf           DjConfig
 	queue          *SongQueue
-	audioStream    *gumble_ffmpeg.Stream
+	audioStream    *Stream
 	homeDir        string
 	playlistSkips  map[string][]string
 }
@@ -52,7 +51,7 @@ func (dj *mumbledj) OnConnect(e *gumble.ConnectEvent) {
 		panic(err)
 	}
 
-	if audioStream, err := gumble_ffmpeg.New(dj.client); err == nil {
+	if audioStream, err := New(dj.client); err == nil {
 		dj.audioStream = audioStream
 		dj.audioStream.Volume = dj.conf.Volume.DefaultVolume
 	} else {
