@@ -314,13 +314,13 @@ func SoundBoard(username string, argument string, lerandom bool) {
 
 	filePath := fmt.Sprintf("%s/.mumbledj/soundboard/%s.ogg", dj.homeDir, argument)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		dj.client.Self().Channel().Send(fmt.Sprintf("%s has requested an invalid soundboard clip.", username), false)
+		dj.client.Self.Channel.Send(fmt.Sprintf("%s has requested an invalid soundboard clip.", username), false)
 	} else {
 		dj.audioStream.Play(fmt.Sprintf(filePath))
 		if lerandom {
-			dj.client.Self().Channel().Send(fmt.Sprintf("%s has randomly played %s", username, argument), false)
+			dj.client.Self.Channel.Send(fmt.Sprintf("%s has randomly played %s", username, argument), false)
 		} else {
-			dj.client.Self().Channel().Send(fmt.Sprintf("%s has requested %s", username, argument), false)
+			dj.client.Self.Channel.Send(fmt.Sprintf("%s has requested %s", username, argument), false)
 		}
 	}
 }
