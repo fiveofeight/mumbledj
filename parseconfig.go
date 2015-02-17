@@ -19,6 +19,7 @@ type DjConfig struct {
 		CommandPrefix     string
 		SkipRatio         float32
 		PlaylistSkipRatio float32
+		DefaultComment    string
 	}
 	Volume struct {
 		DefaultVolume float32
@@ -42,6 +43,7 @@ type DjConfig struct {
 		NumSongsAlias          string
 		NextSongAlias          string
 		CurrentSongAlias       string
+		SetCommentAlias        string
 		KillAlias              string
 	}
 	Permissions struct {
@@ -61,6 +63,7 @@ type DjConfig struct {
 		AdminNumSongs     bool
 		AdminNextSong     bool
 		AdminCurrentSong  bool
+		AdminSetComment   bool
 		AdminKill         bool
 	}
 	SoundBoardList struct {

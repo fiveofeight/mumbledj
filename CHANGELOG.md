@@ -1,6 +1,40 @@
 MumbleDJ Changelog
 ==================
 
+### February 12, 2015 -- `v2.5.0`
+* Updated dependencies and fixed code to match `gumble` API changes.
+* Greatly simplified the song queue data structure. Some new bugs could potentially have arisen. Let me know if you find any!
+
+### February 9, 2015 -- `v2.4.3`
+* Added configuration option in `mumbledj.gcfg` for default bot comment.
+* Fixed text messages only containing images crashing the bot.
+
+### February 7, 2015 -- `v2.4.2`
+* Updated `gumble` and `gumbleutil` dependencies.
+* Removed `sanitize` dependency.
+* Reworked `Makefile` slightly.
+* Now uses `gumbleutil.PlainText` for removing HTML tags instead of `sanitize`.
+* Added `!setcomment` which allows admin users to set the comment for the bot.
+* Made "Now Playing" notification and `!currentsong` show the playlist title of the song if it is included in a playlist.
+* Added ability to connect to Mumble server using a PEM cert/key pair. Use the commandline flags `cert` and `key` to make use of this.
+* Added an easier to read error message upon unsuccessful connection to server.
+
+### February 3, 2015 -- `v2.4.1`
+* Made it possible to place MumbleDJ binary in `~/bin` instead of `/usr/local/bin` if the folder exists.
+
+### February 2, 2015 -- `v2.3.4, v2.3.5, v2.3.6, v2.3.7, v2.4.0`
+* Added panic on audio play fail for debugging purposes.
+* Fixed '!' being recognized as '!skipplaylist'.
+* Fixed !reset crash when there is no audio playing.
+* Fixed newlines after YouTube URL messing up !add commands.
+* Fixed empty song/playlist entry being added upon !add with invalid YouTube ID.
+* Fixed go build issues.
+* Added `goop` dependency management. Make sure you have `openal` installed, or it won't work right!
+* Fixed crash on invalid playlist URL.
+
+### January 30, 2015 -- `v2.3.3`
+* Fixed private messages crashing the bot when the target user switches channels or disconnects.
+
 ### January 26, 2015 -- `v2.3.2`
 * Fixed !nextsong showing incorrect information about the next song in the queue.
 

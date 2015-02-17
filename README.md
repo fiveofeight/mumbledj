@@ -3,7 +3,7 @@ MumbleDJ
 A Mumble bot that plays music fetched from YouTube videos.
 
 ## USAGE
-`$ mumbledj -server=localhost -port=64738 -username=MumbleDJ -password="" -channel=root`  
+`$ mumbledj -server=localhost -port=64738 -username=MumbleDJ -password="" -channel=root -cert="" -key=""`
 All parameters are optional, the example above shows the default values for each field.
 
 ## COMMANDS
@@ -24,6 +24,7 @@ Command | Description | Arguments | Admin | Example
 **numsongs** | Outputs the number of songs in the queue in chat. Individual songs and songs within playlists are both counted. | None | No | `!numsongs`
 **nextsong** | Outputs the title and name of the submitter of the next song in the queue if it exists. | None | No | `!nextsong`
 **currentsong** | Outputs the title and name of the submitter of the song currently playing. | None | No | `!currentsong`
+**setcomment** | Sets the comment for the bot. If no argument is given, the current comment will be removed. | None OR new_comment | Yes | `!setcomment Hello! I am a bot. Type !help for the available commands.`
 **kill** | Safely cleans the bot environment and disconnects from the server. Please use this command to stop the bot instead of force closing, as the kill command deletes any remaining songs in the `~/.mumbledj/songs` directory. | None | Yes | `!kill`
 
 
@@ -38,21 +39,25 @@ Installation for v2 of MumbleDJ is much easier than it was before, due to the re
 ###SETUP GUIDE  
 **1)** Install and correctly configure [`Go`](https://golang.org/) (1.3 or higher). Specifically, make sure to follow [this guide](https://golang.org/doc/code.html) and set the `GOPATH` environment variable properly.
 
-**2)** Install [`ffmpeg`](https://www.ffmpeg.org/) and [`mercurial`](http://mercurial.selenic.com/) if they are not already installed on your system. Also be sure that you have [`opus`](http://www.opus-codec.org/) and its development headers installed on your system.
+**2)** Install [`ffmpeg`](https://www.ffmpeg.org/) and [`mercurial`](http://mercurial.selenic.com/) if they are not already installed on your system. Also be sure that you have 
+[`opus`](http://www.opus-codec.org/) and its development headers installed on your system, as well as `openal` (check your distributions repo for the package name).
 
 **3)** Install [`youtube-dl`](https://github.com/rg3/youtube-dl#installation). It is recommended to install `youtube-dl` through the method described on the linked GitHub page, rather than installing through a distribution repository. This ensures that you get the most up-to-date version of `youtube-dl`.
 
-**4)** Clone the `MumbleDJ` repository or [download the latest release](https://github.com/matthieugrieger/mumbledj/releases).
+**4)** If you wish to install MumbleDJ without any further root privileges, make sure that `~/bin` exists and is added to your `$PATH`. If this step is not done, the `Makefile` will place the MumbleDJ binary in `/usr/local/bin` instead, which requires root privileges.
 
-**5)** `cd` into the `MumbleDJ` repository directory and execute the following commands: 
+**5)** Clone the `MumbleDJ` repository or [download the latest release](https://github.com/matthieugrieger/mumbledj/releases).
+
+**6)** `cd` into the `MumbleDJ` repository directory and execute the following commands: 
 ```
 $ make
 $ make install
 ```
 
-**5)** Edit `~/.mumbledj/config/mumbledj.gcfg` to your liking. This file will be overwritten if the config file structure is changed in a commit, but a backup is always stored at `~/.mumbledj/config/mumbledj_backup.gcfg`.
+**7)** Edit `~/.mumbledj/config/mumbledj.gcfg` to your liking. This file will be overwritten if the config file structure is changed in a commit, but a backup is always stored at 
+`~/.mumbledj/config/mumbledj_backup.gcfg`.
 
-**6)** Execute the command shown at the top of this `README` document with your credentials, and the bot should be up and running!
+**8)** Execute the command shown at the top of this `README` document with your credentials, and the bot should be up and running!
 
 **Recommended, but not required:** Set `opusthreshold=0` in `/etc/mumble-server.ini` or `/etc/murmur.ini`. This will force the server to always use the Opus audio codec, which is the only codec that MumbleDJ supports.
 
@@ -102,5 +107,5 @@ THE SOFTWARE.
 * [Tim Cooper](https://github.com/bontibon) for [gumble](https://github.com/layeh/gumble).
 * [Ricardo Garcia](https://github.com/rg3) for [youtube-dl](https://github.com/rg3/youtube-dl).
 * [ScalingData](https://github.com/scalingdata) for [gcfg](https://github.com/scalingdata/gcfg).
-* [kennygrant](https://github.com/kennygrant) for [sanitize](https://github.com/kennygrant/sanitize).
 * [Jason Moiron](https://github.com/jmoiron) for [jsonq](https://github.com/jmoiron/jsonq).
+* [Nitrous.IO](https://github.com/nitrous-io) for [goop](https://github.com/nitrous-io/goop).

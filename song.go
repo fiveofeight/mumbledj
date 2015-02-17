@@ -24,24 +24,30 @@ type Song struct {
 	submitter    string
 	title        string
 	youtubeId    string
-	playlistId   string
 	duration     string
 	thumbnailUrl string
-	itemType     string
 	skippers     []string
+	playlist     *Playlist
+	dontSkip     bool
 }
 
 // Returns a new Song type. Before returning the new type, the song's metadata is collected
 // via the YouTube Gdata API.
-func NewSong(user, id string) *Song {
+func NewSong(user, id string, playlist *Playlist) (*Song, error) {
 	jsonUrl := fmt.Sprintf("http://gdata.youtube.com/feeds/api/videos/%s?v=2&alt=jsonc", id)
 	jsonString := ""
 
 	if response, err := http.Get(jsonUrl); err == nil {
 		defer response.Body.Close()
-		if body, err := ioutil.ReadAll(response.Body); err == nil {
-			jsonString = string(body)
+		if response.StatusCode != 400 && response.StatusCode != 404 {
+			if body, err := ioutil.ReadAll(response.Body); err == nil {
+				jsonString = string(body)
+			}
+		} else {
+			return nil, errors.New("Invalid YouTube ID supplied.")
 		}
+	} else {
+		return nil, errors.New("An error occurred while receiving HTTP GET request.")
 	}
 
 	jsonData := map[string]interface{}{}
@@ -58,12 +64,12 @@ func NewSong(user, id string) *Song {
 		submitter:    user,
 		title:        videoTitle,
 		youtubeId:    id,
-		playlistId:   "",
 		duration:     videoDuration,
 		thumbnailUrl: videoThumbnail,
-		itemType:     "song",
+		playlist:     playlist,
+		dontSkip:     false,
 	}
-	return song
+	return song, nil
 }
 
 // Downloads the song via youtube-dl. All downloaded songs are stored in ~/.mumbledj/songs and should be automatically cleaned.
@@ -79,8 +85,17 @@ func (s *Song) Download() error {
 // Plays the song. Once the song is playing, a notification is displayed in a text message that features the video thumbnail, URL, title,
 // duration, and submitter.
 func (s *Song) Play() {
-	dj.audioStream.Play(fmt.Sprintf("%s/.mumbledj/songs/%s.m4a", dj.homeDir, s.youtubeId))
-	dj.client.Self().Channel().Send(fmt.Sprintf(NOW_PLAYING_HTML, s.thumbnailUrl, s.youtubeId, s.title, s.duration, s.submitter), false)
+	if err := dj.audioStream.Play(fmt.Sprintf("%s/.mumbledj/songs/%s.m4a", dj.homeDir, s.youtubeId), dj.queue.OnSongFinished); err != nil {
+		panic(err)
+	} else {
+		if s.playlist == nil {
+			dj.client.Self.Channel.Send(fmt.Sprintf(NOW_PLAYING_HTML, s.thumbnailUrl, s.youtubeId, s.title,
+				s.duration, s.submitter), false)
+		} else {
+			dj.client.Self.Channel.Send(fmt.Sprintf(NOW_PLAYING_PLAYLIST_HTML, s.thumbnailUrl, s.youtubeId,
+				s.title, s.duration, s.submitter, s.playlist.title), false)
+		}
+	}
 }
 
 // Deletes the song from ~/.mumbledj/songs.
@@ -130,9 +145,4 @@ func (s *Song) SkipReached(channelUsers int) bool {
 	} else {
 		return false
 	}
-}
-
-// Returns "song" as the item type. Used for differentiating Songs from Playlists.
-func (s *Song) ItemType() string {
-	return "song"
 }

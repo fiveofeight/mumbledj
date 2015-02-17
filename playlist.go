@@ -20,26 +20,27 @@ import (
 
 // Playlist type declaration.
 type Playlist struct {
-	songs     *SongQueue
-	youtubeId string
-	title     string
-	submitter string
-	skippers  []string
-	skipped   bool
+	id    string
+	title string
 }
 
 // Returns a new Playlist type. Before returning the new type, the playlist's metadata is collected
 // via the YouTube Gdata API.
-func NewPlaylist(user, id string) *Playlist {
-	queue := NewSongQueue()
+func NewPlaylist(user, id string) (*Playlist, error) {
 	jsonUrl := fmt.Sprintf("http://gdata.youtube.com/feeds/api/playlists/%s?v=2&alt=jsonc&maxresults=25", id)
 	jsonString := ""
 
 	if response, err := http.Get(jsonUrl); err == nil {
 		defer response.Body.Close()
-		if body, err := ioutil.ReadAll(response.Body); err == nil {
-			jsonString = string(body)
+		if response.StatusCode != 400 && response.StatusCode != 404 {
+			if body, err := ioutil.ReadAll(response.Body); err == nil {
+				jsonString = string(body)
+			}
+		} else {
+			return nil, errors.New("Invalid YouTube ID supplied.")
 		}
+	} else {
+		return nil, errors.New("An error occurred while receiving HTTP GET request.")
 	}
 
 	jsonData := map[string]interface{}{}
@@ -53,6 +54,11 @@ func NewPlaylist(user, id string) *Playlist {
 		playlistItems = 25
 	}
 
+	playlist := &Playlist{
+		id:    id,
+		title: playlistTitle,
+	}
+
 	for i := 0; i < playlistItems; i++ {
 		index := strconv.Itoa(i)
 		songTitle, _ := jq.String("data", "items", index, "video", "title")
@@ -64,59 +70,52 @@ func NewPlaylist(user, id string) *Playlist {
 			submitter:    user,
 			title:        songTitle,
 			youtubeId:    songId,
-			playlistId:   id,
 			duration:     songDuration,
 			thumbnailUrl: songThumbnail,
+			playlist:     playlist,
+			dontSkip:     false,
 		}
-		queue.AddItem(newSong)
+		dj.queue.AddSong(newSong)
 	}
 
-	playlist := &Playlist{
-		songs:     queue,
-		youtubeId: id,
-		title:     playlistTitle,
-		submitter: user,
-		skipped:   false,
-	}
-	return playlist
+	return playlist, nil
 }
 
-// Adds a skip to the skippers slice. If the user is already in the slice AddSkip() returns
-// an error and does not add a duplicate skip.
+// Adds a skip to the skippers slice for the current playlist.
 func (p *Playlist) AddSkip(username string) error {
-	for _, user := range p.skippers {
+	for _, user := range dj.playlistSkips[p.id] {
 		if username == user {
 			return errors.New("This user has already skipped the current song.")
 		}
 	}
-	p.skippers = append(p.skippers, username)
+	dj.playlistSkips[p.id] = append(dj.playlistSkips[p.id], username)
 	return nil
 }
 
 // Removes a skip from the skippers slice. If username is not in the slice, an error is
 // returned.
 func (p *Playlist) RemoveSkip(username string) error {
-	for i, user := range p.skippers {
+	for i, user := range dj.playlistSkips[p.id] {
 		if username == user {
-			p.skippers = append(p.skippers[:i], p.skippers[i+1:]...)
+			dj.playlistSkips[p.id] = append(dj.playlistSkips[p.id][:i], dj.playlistSkips[p.id][i+1:]...)
 			return nil
 		}
 	}
 	return errors.New("This user has not skipped the song.")
 }
 
+// Removes skippers entry in dj.playlistSkips.
+func (p *Playlist) DeleteSkippers() {
+	delete(dj.playlistSkips, p.id)
+}
+
 // Calculates current skip ratio based on number of users within MumbleDJ's channel and the
 // amount of values in the skippers slice. If the value is greater than or equal to the skip ratio
 // defined in mumbledj.gcfg, the function returns true. Returns false otherwise.
 func (p *Playlist) SkipReached(channelUsers int) bool {
-	if float32(len(p.skippers))/float32(channelUsers) >= dj.conf.General.PlaylistSkipRatio {
+	if float32(len(dj.playlistSkips[p.id]))/float32(channelUsers) >= dj.conf.General.PlaylistSkipRatio {
 		return true
 	} else {
 		return false
 	}
-}
-
-// Returns "playlist" as the item type. Used for differentiating Songs from Playlists.
-func (p *Playlist) ItemType() string {
-	return "playlist"
 }
