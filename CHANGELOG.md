@@ -1,6 +1,49 @@
 MumbleDJ Changelog
 ==================
 
+### April 17, 2015 -- `v2.7.0`
+* Migrated all YouTube API calls to YouTube Data API v3. This means that you **MUST** follow the instructions in the following link if you were using a previous version of MumbleDJ: https://github.com/matthieugrieger/mumbledj#youtube-api-keys.
+* Made the SongQueue much more flexible. These changes will allow easy addition of support for other music services.
+
+### March 28, 2015 -- `v2.6.10`
+* Fixed a crash that would occur when the last song of a playlist was skipped.
+
+### March 27, 2015 -- `v2.6.9`
+* Fixed a race condition that would sometimes cause the bot to crash (thanks [dylanetaft](https://github.com/dylanetaft)!).
+
+### March 26, 2015 -- `v2.6.8`
+* Renamed `mumbledj.gcfg` to `config.gcfg`. However, please note that it will still be called `mumbledj.gcfg` in your `~/.mumbledj` directory. Hopefully this will avoid any ambiguity when referring to the
+config files.
+* Tweaked the `Makefile` to handle situations where `go build` creates an executable with an appended version number.
+
+### March 20, 2015 -- `v2.6.7`
+* Fixed a typo in `mumbledj.gcfg`.
+* Songs and playlists are now skipped immediately if the submitter submits a skip command.
+* `SONG_SKIPPED_HTML` and `PLAYLIST_SKIPPED_HTML` are no longer shown if the submitter or admin skips a song/playlist.
+
+### March 7, 2015 -- `v2.6.6`
+* Added missing AdminSkipPlaylistAlias option to `mumbledj.gcfg`.
+
+### February 25, 2015 -- `v2.6.5`
+* Added automatic connection retries if the bot loses connection to the server. The bot will attempt to reconnect to the server every 30 seconds for a period of 15 minutes, then exit if a connection cannot be made.
+
+### February 20, 2015 -- `v2.6.4`
+* Fixed failed audio downloads for YouTube videos with IDs beginning with "-".
+
+### February 19, 2015 -- `v2.6.3`
+* Added `gumbleutil.CertificateLockFile()` for more secure connections.
+* Added `-insecure` boolean commandline flag to allow MumbleDJ to connect to a server without overwriting `~/.mumbledj/cert.lock`.
+
+### February 18, 2015 -- `v2.6.2`
+* Fixed bot crashing after 5 minutes if there is nothing in the song queue.
+* Fixed queue freezing up if the download of the first song in queue fails.
+
+### February 17, 2015 -- `v2.6.0, v2.6.1`
+* Added caching system to MumbleDJ.
+* Added configuration variables in `mumbledj.gcfg` for caching related settings (please note that caching is off by default).
+* Added `!numcached` and `!cachesize` commands for admins.
+* Added optional song length limit (thanks [jakexks](https://github.com/jakexks)!)
+
 ### February 12, 2015 -- `v2.5.0`
 * Updated dependencies and fixed code to match `gumble` API changes.
 * Greatly simplified the song queue data structure. Some new bugs could potentially have arisen. Let me know if you find any!
@@ -122,7 +165,7 @@ MumbleDJ Changelog
 
 ### October 18, 2014
 * Fixed a crash when an error occurs during the audio downloading & encoding process.
-* Fixed a crash that occurs when the bot tries to join a default channel that does not exist. If the default channel does not exist, the bot will just move itself 
+* Fixed a crash that occurs when the bot tries to join a default channel that does not exist. If the default channel does not exist, the bot will just move itself
 to the root of the server instead.
 
 ### October 13, 2014

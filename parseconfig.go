@@ -8,9 +8,10 @@
 package main
 
 import (
-	"code.google.com/p/gcfg"
 	"errors"
 	"fmt"
+
+	"code.google.com/p/gcfg"
 )
 
 // Golang struct representation of mumbledj.gcfg file structure for parsing.
@@ -20,6 +21,12 @@ type DjConfig struct {
 		SkipRatio         float32
 		PlaylistSkipRatio float32
 		DefaultComment    string
+		MaxSongDuration   int
+	}
+	Cache struct {
+		Enabled     bool
+		MaximumSize int64
+		ExpireTime  float64
 	}
 	Volume struct {
 		DefaultVolume float32
@@ -44,6 +51,8 @@ type DjConfig struct {
 		NextSongAlias          string
 		CurrentSongAlias       string
 		SetCommentAlias        string
+		NumCachedAlias         string
+		CacheSizeAlias         string
 		KillAlias              string
 	}
 	Permissions struct {
@@ -64,6 +73,8 @@ type DjConfig struct {
 		AdminNextSong     bool
 		AdminCurrentSong  bool
 		AdminSetComment   bool
+		AdminNumCached    bool
+		AdminCacheSize    bool
 		AdminKill         bool
 	}
 	SoundBoardList struct {
@@ -77,6 +88,7 @@ func loadConfiguration() error {
 	if gcfg.ReadFileInto(&dj.conf, fmt.Sprintf("%s/.mumbledj/config/mumbledj.gcfg", dj.homeDir)) == nil {
 		return nil
 	} else {
+		fmt.Printf("%s/.mumbledj/config/mumbledj.gcfg\n", dj.homeDir)
 		return errors.New("Configuration load failed.")
 	}
 }

@@ -10,13 +10,14 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/layeh/gumble/gumble"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"math/rand"
 	"time"
+
+	"github.com/layeh/gumble/gumble"
 )
 
 // Called on text message event. Checks the message for a command string, and processes it accordingly if
@@ -161,6 +162,20 @@ func parseCommand(user *gumble.User, username, command string) {
 		} else {
 			dj.SendPrivateMessage(user, NO_PERMISSION_MSG)
 		}
+	// Numcached command
+	case dj.conf.Aliases.NumCachedAlias:
+		if dj.HasPermission(username, dj.conf.Permissions.AdminNumCached) {
+			numCached(user)
+		} else {
+			dj.SendPrivateMessage(user, NO_PERMISSION_MSG)
+		}
+	// Cachesize command
+	case dj.conf.Aliases.CacheSizeAlias:
+		if dj.HasPermission(username, dj.conf.Permissions.AdminCacheSize) {
+			cacheSize(user)
+		} else {
+			dj.SendPrivateMessage(user, NO_PERMISSION_MSG)
+		}
 	// Kill command
 	case dj.conf.Aliases.KillAlias:
 		if dj.HasPermission(username, dj.conf.Permissions.AdminKill) {
@@ -206,18 +221,19 @@ func add(user *gumble.User, username, url string) {
 		}
 
 		if matchFound {
-			if newSong, err := NewSong(username, shortUrl, timeUrl, nil); err == nil {
-				if err := dj.queue.AddSong(newSong); err == nil {
-					dj.client.Self.Channel.Send(fmt.Sprintf(SONG_ADDED_HTML, username, newSong.title), false)
-					if dj.queue.Len() == 1 && !dj.audioStream.IsPlaying() {
-						if err := dj.queue.CurrentSong().Download(); err == nil {
-							dj.queue.CurrentSong().Play()
-						} else {
-							dj.SendPrivateMessage(user, AUDIO_FAIL_MSG)
-							dj.queue.CurrentSong().Delete()
-						}
+			if newSong, err := NewYouTubeSong(username, shortUrl, timeUrl, nil); err == nil {
+				dj.client.Self.Channel.Send(fmt.Sprintf(SONG_ADDED_HTML, username, newSong.title), false)
+				if dj.queue.Len() == 1 && !dj.audioStream.IsPlaying() {
+					if err := dj.queue.CurrentSong().Download(); err == nil {
+						dj.queue.CurrentSong().Play()
+					} else {
+						dj.SendPrivateMessage(user, AUDIO_FAIL_MSG)
+						dj.queue.CurrentSong().Delete()
+						dj.queue.OnSongFinished()
 					}
 				}
+			} else if fmt.Sprint(err) == "video exceeds the maximum allowed duration." {
+				dj.SendPrivateMessage(user, VIDEO_TOO_LONG_MSG)
 			} else {
 				dj.SendPrivateMessage(user, INVALID_YOUTUBE_ID_MSG)
 			}
@@ -229,14 +245,15 @@ func add(user *gumble.User, username, url string) {
 					if dj.HasPermission(username, dj.conf.Permissions.AdminAddPlaylists) {
 						shortUrl = re.FindStringSubmatch(url)[1]
 						oldLength := dj.queue.Len()
-						if newPlaylist, err := NewPlaylist(username, shortUrl); err == nil {
+						if newPlaylist, err := NewYouTubePlaylist(username, shortUrl); err == nil {
 							dj.client.Self.Channel.Send(fmt.Sprintf(PLAYLIST_ADDED_HTML, username, newPlaylist.title), false)
-							if oldLength == 0 && !dj.audioStream.IsPlaying() {
+							if oldLength == 0 && dj.queue.Len() != 0 && !dj.audioStream.IsPlaying() {
 								if err := dj.queue.CurrentSong().Download(); err == nil {
 									dj.queue.CurrentSong().Play()
 								} else {
 									dj.SendPrivateMessage(user, AUDIO_FAIL_MSG)
 									dj.queue.CurrentSong().Delete()
+									dj.queue.OnSongFinished()
 								}
 							}
 						} else {
@@ -258,19 +275,23 @@ func add(user *gumble.User, username, url string) {
 func skip(user *gumble.User, username string, admin, playlistSkip bool) {
 	if dj.audioStream.IsPlaying() {
 		if playlistSkip {
-			if dj.queue.CurrentSong().playlist != nil {
-				if err := dj.queue.CurrentSong().playlist.AddSkip(username); err == nil {
+			if dj.queue.CurrentSong().Playlist() != nil {
+				if err := dj.queue.CurrentSong().Playlist().AddSkip(username); err == nil {
+					submitterSkipped := false
 					if admin {
 						dj.client.Self.Channel.Send(ADMIN_PLAYLIST_SKIP_MSG, false)
+					} else if dj.queue.CurrentSong().Submitter() == username {
+						dj.client.Self.Channel.Send(fmt.Sprintf(PLAYLIST_SUBMITTER_SKIP_HTML, username), false)
+						submitterSkipped = true
 					} else {
 						dj.client.Self.Channel.Send(fmt.Sprintf(PLAYLIST_SKIP_ADDED_HTML, username), false)
 					}
-					if dj.queue.CurrentSong().playlist.SkipReached(len(dj.client.Self.Channel.Users)) || admin {
-						id := dj.queue.CurrentSong().playlist.id
-						dj.queue.CurrentSong().playlist.DeleteSkippers()
+					if submitterSkipped || dj.queue.CurrentSong().Playlist().SkipReached(len(dj.client.Self.Channel.Users)) || admin {
+						id := dj.queue.CurrentSong().Playlist().ID()
+						dj.queue.CurrentSong().Playlist().DeleteSkippers()
 						for i := 0; i < len(dj.queue.queue); i++ {
-							if dj.queue.queue[i].playlist != nil {
-								if dj.queue.queue[i].playlist.id == id {
+							if dj.queue.queue[i].Playlist() != nil {
+								if dj.queue.queue[i].Playlist().ID() == id {
 									dj.queue.queue = append(dj.queue.queue[:i], dj.queue.queue[i+1:]...)
 									i--
 								}
@@ -278,9 +299,11 @@ func skip(user *gumble.User, username string, admin, playlistSkip bool) {
 						}
 						if dj.queue.Len() != 0 {
 							// Set dontSkip to true to avoid audioStream.Stop() callback skipping the new first song.
-							dj.queue.CurrentSong().dontSkip = true
+							dj.queue.CurrentSong().SetDontSkip(true)
 						}
-						dj.client.Self.Channel.Send(PLAYLIST_SKIPPED_HTML, false)
+						if !(submitterSkipped || admin) {
+							dj.client.Self.Channel.Send(PLAYLIST_SKIPPED_HTML, false)
+						}
 						if err := dj.audioStream.Stop(); err != nil {
 							panic(errors.New("An error occurred while stopping the current song."))
 						}
@@ -291,13 +314,19 @@ func skip(user *gumble.User, username string, admin, playlistSkip bool) {
 			}
 		} else {
 			if err := dj.queue.CurrentSong().AddSkip(username); err == nil {
+				submitterSkipped := false
 				if admin {
 					dj.client.Self.Channel.Send(ADMIN_SONG_SKIP_MSG, false)
+				} else if dj.queue.CurrentSong().Submitter() == username {
+					dj.client.Self.Channel.Send(fmt.Sprintf(SUBMITTER_SKIP_HTML, username), false)
+					submitterSkipped = true
 				} else {
 					dj.client.Self.Channel.Send(fmt.Sprintf(SKIP_ADDED_HTML, username), false)
 				}
-				if dj.queue.CurrentSong().SkipReached(len(dj.client.Self.Channel.Users)) || admin {
-					dj.client.Self.Channel.Send(SONG_SKIPPED_HTML, false)
+				if submitterSkipped || dj.queue.CurrentSong().SkipReached(len(dj.client.Self.Channel.Users)) || admin {
+					if !(submitterSkipped || admin) {
+						dj.client.Self.Channel.Send(SONG_SKIPPED_HTML, false)
+					}
 					if err := dj.audioStream.Stop(); err != nil {
 						panic(errors.New("An error occurred while stopping the current song."))
 					}
@@ -400,8 +429,8 @@ func reset(username string) {
 // the number of songs in the queue to chat.
 func numSongs() {
 	songCount := 0
-	dj.queue.Traverse(func(i int, song *Song) {
-		songCount += 1
+	dj.queue.Traverse(func(i int, song Song) {
+		songCount++
 	})
 	dj.client.Self.Channel.Send(fmt.Sprintf(NUM_SONGS_HTML, songCount), false)
 }
@@ -413,7 +442,7 @@ func nextSong(user *gumble.User) {
 	if song, err := dj.queue.PeekNext(); err != nil {
 		dj.SendPrivateMessage(user, NO_SONG_NEXT_MSG)
 	} else {
-		dj.SendPrivateMessage(user, fmt.Sprintf(NEXT_SONG_HTML, song.title, song.submitter))
+		dj.SendPrivateMessage(user, fmt.Sprintf(NEXT_SONG_HTML, song.Title(), song.Submitter()))
 	}
 }
 
@@ -421,11 +450,11 @@ func nextSong(user *gumble.User) {
 // information about the song currently playing.
 func currentSong(user *gumble.User) {
 	if dj.audioStream.IsPlaying() {
-		if dj.queue.CurrentSong().playlist == nil {
-			dj.SendPrivateMessage(user, fmt.Sprintf(CURRENT_SONG_HTML, dj.queue.CurrentSong().title, dj.queue.CurrentSong().submitter))
+		if dj.queue.CurrentSong().Playlist() == nil {
+			dj.SendPrivateMessage(user, fmt.Sprintf(CURRENT_SONG_HTML, dj.queue.CurrentSong().Title(), dj.queue.CurrentSong().Submitter()))
 		} else {
-			dj.SendPrivateMessage(user, fmt.Sprintf(CURRENT_SONG_PLAYLIST_HTML, dj.queue.CurrentSong().title,
-				dj.queue.CurrentSong().submitter, dj.queue.CurrentSong().playlist.title))
+			dj.SendPrivateMessage(user, fmt.Sprintf(CURRENT_SONG_PLAYLIST_HTML, dj.queue.CurrentSong().Title(),
+				dj.queue.CurrentSong().Submitter(), dj.queue.CurrentSong().Playlist().Title()))
 		}
 	} else {
 		dj.SendPrivateMessage(user, NO_MUSIC_PLAYING_MSG)
@@ -436,6 +465,26 @@ func currentSong(user *gumble.User) {
 func setComment(user *gumble.User, comment string) {
 	dj.client.Self.SetComment(comment)
 	dj.SendPrivateMessage(user, COMMENT_UPDATED_MSG)
+}
+
+// Performs numcached functionality. Displays the number of songs currently cached on disk at ~/.mumbledj/songs.
+func numCached(user *gumble.User) {
+	if dj.conf.Cache.Enabled {
+		dj.cache.Update()
+		dj.SendPrivateMessage(user, fmt.Sprintf(NUM_CACHED_MSG, dj.cache.NumSongs))
+	} else {
+		dj.SendPrivateMessage(user, CACHE_NOT_ENABLED_MSG)
+	}
+}
+
+// Performs cachesize functionality. Displays the total file size of the cached audio files.
+func cacheSize(user *gumble.User) {
+	if dj.conf.Cache.Enabled {
+		dj.cache.Update()
+		dj.SendPrivateMessage(user, fmt.Sprintf(CACHE_SIZE_MSG, float64(dj.cache.TotalFileSize/1048576)))
+	} else {
+		dj.SendPrivateMessage(user, CACHE_NOT_ENABLED_MSG)
+	}
 }
 
 // Performs kill functionality. First cleans the ~/.mumbledj/songs directory to get rid of any
@@ -463,5 +512,4 @@ func deleteSongs() error {
 		}
 		return nil
 	}
-	return nil
 }

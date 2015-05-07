@@ -22,6 +22,9 @@ const CHANNEL_DOES_NOT_EXIST_MSG = "The channel you specified does not exist."
 // Message shown to users when they attempt to add an invalid URL to the queue.
 const INVALID_URL_MSG = "The URL you submitted does not match the required format."
 
+// Message shown to users when they attempt to add a video that's too long
+const VIDEO_TOO_LONG_MSG = "The video you submitted exceeds the duration allowed by the server."
+
 // Message shown to users when they attempt to perform an action on a song when
 // no song is playing.
 const NO_MUSIC_PLAYING_MSG = "There is no music playing at the moment."
@@ -56,38 +59,14 @@ const INVALID_YOUTUBE_ID_MSG = "The YouTube URL you supplied did not contain a v
 // Message shown to user when they successfully update the bot's comment.
 const COMMENT_UPDATED_MSG = "The comment for the bot has successfully been updated."
 
-// Message shown to a channel when a new song starts playing.
-const NOW_PLAYING_HTML = `
-	<table>
-		<tr>
-			<td align="center"><img src="%s" width=150 /></td>
-		</tr>
-		<tr>
-			<td align="center"><b><a href="http://youtu.be/%s">%s</a> (%s)</b></td>
-		</tr>
-		<tr>
-			<td align="center">Added by %s</td>
-		</tr>
-	</table>
-`
+// Message shown to user when they request to see the number of songs cached on disk.
+const NUM_CACHED_MSG = "There are currently %d songs cached on disk."
 
-// Message shown to channel when a new song in a playlist starts playing.
-const NOW_PLAYING_PLAYLIST_HTML = `
-	<table>
-		<tr>
-			<td align="center"><img src="%s" width=150 /></td>
-		</tr>
-		<tr>
-			<td align="center"><b><a href="http://youtu.be/%s">%s</a> (%s)</b></td>
-		</tr>
-		<tr>
-			<td align="center">Added by %s</td>
-		</tr>
-		<tr>
-			<td align="center">From playlist "%s"</td>
-		</tr>
-	</table>
-`
+// Message shown to user when they request to see the total size of the cache.
+const CACHE_SIZE_MSG = "The cache is currently %g MB in size."
+
+// Message shown to user when they attempt to issue a cache-related command when caching is not enabled.
+const CACHE_NOT_ENABLED_MSG = "The cache is not currently enabled."
 
 // Message shown to channel when a song is added to the queue by a user.
 const SONG_ADDED_HTML = `
@@ -131,6 +110,8 @@ const HELP_HTML = `<br/>
 	<p><b>!move </b>- Moves MumbleDJ into channel if it exists.</p>
 	<p><b>!reload</b> - Reloads mumbledj.gcfg configuration settings.</p>
 	<p><b>!setcomment</b> - Sets the comment for the bot.</p>
+	<p><b>!numcached</b></p> - Outputs the number of songs cached on disk.</p>
+	<p><b>!cachesize</b></p> - Outputs the total file size of the cache in MB.</p>
 	<p><b>!kill</b> - Safely cleans the bot environment and disconnects from the server.</p>
 `
 
@@ -144,9 +125,19 @@ const SKIP_ADDED_HTML = `
 	<b>%s</b> has voted to skip the current song.
 `
 
+// Message shown to users when the submitter of a song decides to skip their song.
+const SUBMITTER_SKIP_HTML = `
+	The current song has been skipped by <b>%s</b>, the submitter.
+`
+
 // Message shown to users when another user votes to skip the current playlist.
 const PLAYLIST_SKIP_ADDED_HTML = `
 	<b>%s</b> has voted to skip the current playlist.
+`
+
+// Message shown to users when the submitter of a song decides to skip their song.
+const PLAYLIST_SUBMITTER_SKIP_HTML = `
+	The current playlist has been skipped by <b>%s</b>, the submitter.
 `
 
 // Message shown to users when they successfully change the volume.

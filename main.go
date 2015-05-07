@@ -11,11 +11,13 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"os"
+	"os/user"
+	"time"
+
 	"github.com/layeh/gopus"
 	"github.com/layeh/gumble/gumble"
 	"github.com/layeh/gumble/gumbleutil"
-	"os"
-	"os/user"
 )
 
 // MumbleDJ type declaration
@@ -29,6 +31,7 @@ type mumbledj struct {
 	audioStream    *Stream
 	homeDir        string
 	playlistSkips  map[string][]string
+	cache          *SongCache
 }
 
 // OnConnect event. First moves MumbleDJ into the default channel specified
@@ -41,16 +44,6 @@ func (dj *mumbledj) OnConnect(e *gumble.ConnectEvent) {
 		fmt.Println("Channel doesn't exist or one was not provided, staying in root channel...")
 	}
 
-	if currentUser, err := user.Current(); err == nil {
-		dj.homeDir = currentUser.HomeDir
-	}
-
-	if err := loadConfiguration(); err == nil {
-		fmt.Println("Configuration successfully loaded!")
-	} else {
-		panic(err)
-	}
-
 	if audioStream, err := New(dj.client); err == nil {
 		dj.audioStream = audioStream
 		dj.audioStream.Volume = dj.conf.Volume.DefaultVolume
@@ -61,11 +54,35 @@ func (dj *mumbledj) OnConnect(e *gumble.ConnectEvent) {
 	dj.client.AudioEncoder.SetApplication(gopus.Audio)
 
 	dj.client.Self.SetComment(dj.conf.General.DefaultComment)
+
+	if dj.conf.Cache.Enabled {
+		dj.cache.Update()
+		go dj.cache.ClearExpired()
+	}
 }
 
 // OnDisconnect event. Terminates MumbleDJ thread.
 func (dj *mumbledj) OnDisconnect(e *gumble.DisconnectEvent) {
-	dj.keepAlive <- true
+	if e.Type == gumble.DisconnectError || e.Type == gumble.DisconnectKicked {
+		fmt.Println("Disconnected from server... Will retry connection in 30 second intervals for 15 minutes.")
+		reconnectSuccess := false
+		for retries := 0; retries <= 30; retries++ {
+			fmt.Println("Retrying connection...")
+			if err := dj.client.Connect(); err == nil {
+				fmt.Println("Successfully reconnected to the server!")
+				reconnectSuccess = true
+				break
+			}
+			time.Sleep(30 * time.Second)
+		}
+		if !reconnectSuccess {
+			fmt.Println("Could not reconnect to server. Exiting...")
+			dj.keepAlive <- true
+			os.Exit(1)
+		}
+	} else {
+		dj.keepAlive <- true
+	}
 }
 
 // OnTextMessage event. Checks for command prefix, and calls parseCommand if it exists. Ignores
@@ -84,8 +101,8 @@ func (dj *mumbledj) OnTextMessage(e *gumble.TextMessageEvent) {
 func (dj *mumbledj) OnUserChange(e *gumble.UserChangeEvent) {
 	if e.Type.Has(gumble.UserChangeDisconnected) {
 		if dj.audioStream.IsPlaying() {
-			if dj.queue.CurrentSong().playlist != nil {
-				dj.queue.CurrentSong().playlist.RemoveSkip(e.User.Name)
+			if dj.queue.CurrentSong().Playlist() != nil {
+				dj.queue.CurrentSong().Playlist().RemoveSkip(e.User.Name)
 			}
 			dj.queue.CurrentSong().RemoveSkip(e.User.Name)
 		}
@@ -115,17 +132,41 @@ func (dj *mumbledj) SendPrivateMessage(user *gumble.User, message string) {
 	}
 }
 
+// PerformStartupChecks checks the MumbleDJ installation to ensure proper usage.
+func PerformStartupChecks() {
+	if os.Getenv("YOUTUBE_API_KEY") == "" {
+		fmt.Printf("You do not have a YouTube API key defined in your environment variables.\n" +
+			"Please see the following link for info on how to fix this: https://github.com/matthieugrieger/mumbledj#youtube-api-keys\n")
+		os.Exit(1)
+	}
+}
+
 // dj variable declaration. This is done outside of main() to allow global use.
 var dj = mumbledj{
 	keepAlive:     make(chan bool),
 	queue:         NewSongQueue(),
 	playlistSkips: make(map[string][]string),
+	cache:         NewSongCache(),
 }
 
 // Main function, but only really performs startup tasks. Grabs and parses commandline
 // args, sets up the gumble client and its listeners, and then connects to the server.
 func main() {
+
+	PerformStartupChecks()
+
+	if currentUser, err := user.Current(); err == nil {
+		dj.homeDir = currentUser.HomeDir
+	}
+
+	if err := loadConfiguration(); err == nil {
+		fmt.Println("Configuration successfully loaded!")
+	} else {
+		panic(err)
+	}
+
 	var address, port, username, password, channel, pemCert, pemKey string
+	var insecure bool
 
 	flag.StringVar(&address, "server", "localhost", "address for Mumble server")
 	flag.StringVar(&port, "port", "64738", "port for Mumble server")
@@ -134,13 +175,19 @@ func main() {
 	flag.StringVar(&channel, "channel", "root", "default channel for MumbleDJ")
 	flag.StringVar(&pemCert, "cert", "", "path to user PEM certificate for MumbleDJ")
 	flag.StringVar(&pemKey, "key", "", "path to user PEM key for MumbleDJ")
+	flag.BoolVar(&insecure, "insecure", false, "skip certificate checking")
 	flag.Parse()
 
-	dj.client = gumble.NewClient(&dj.config)
 	dj.config = gumble.Config{
 		Username: username,
 		Password: password,
 		Address:  address + ":" + port,
+	}
+	dj.client = gumble.NewClient(&dj.config)
+
+	dj.config.TLSConfig.InsecureSkipVerify = true
+	if !insecure {
+		gumbleutil.CertificateLockFile(dj.client, fmt.Sprintf("%s/.mumbledj/cert.lock", dj.homeDir))
 	}
 	if pemCert != "" {
 		if pemKey == "" {
@@ -163,9 +210,6 @@ func main() {
 	})
 	dj.client.Attach(gumbleutil.AutoBitrate)
 
-	// IMPORTANT NOTE: This will be changed later once released. Not really safe at the
-	// moment.
-	dj.config.TLSConfig.InsecureSkipVerify = true
 	if err := dj.client.Connect(); err != nil {
 		fmt.Printf("Could not connect to Mumble server at %s:%s.\n", address, port)
 		os.Exit(1)
