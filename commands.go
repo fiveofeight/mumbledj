@@ -194,34 +194,28 @@ func add(user *gumble.User, username, url string) {
 	if url == "" {
 		dj.SendPrivateMessage(user, NO_ARGUMENT_MSG)
 	} else {
-	youtubePatterns := []string{
-			`https?:\/\/www\.youtube\.com\/watch\?v=([\w-]+)[[#|&]?t?=?([\d-]+)?`,
-			`https?:\/\/youtube\.com\/watch\?v=([\w-]+)[[#|&]?t?=?([\d-]+)?`,
-			`https?:\/\/youtu.be\/([\w-]+)\??t?=?([\d-]+)?`,
-			`https?:\/\/youtube.com\/v\/([\w-]+)[[#|&]?t?=?([\d-]+)?`,
-			`https?:\/\/www.youtube.com\/v\/([\w-]+)[[#|&]?t?=?([\d-]+)?`,
+		youtubePatterns := []string{
+			`https?:\/\/www\.youtube\.com\/watch\?v=([\w-]+)`,
+			`https?:\/\/youtube\.com\/watch\?v=([\w-]+)`,
+			`https?:\/\/youtu.be\/([\w-]+)`,
+			`https?:\/\/youtube.com\/v\/([\w-]+)`,
+			`https?:\/\/www.youtube.com\/v\/([\w-]+)`,
 		}
-	
 		matchFound := false
 		shortUrl := ""
-		timeUrl := "0"
 
 		for _, pattern := range youtubePatterns {
 			if re, err := regexp.Compile(pattern); err == nil {
 				if re.MatchString(url) {
 					matchFound = true
 					shortUrl = re.FindStringSubmatch(url)[1]
-					timeUrl = re.FindStringSubmatch(url)[2]
-					if timeUrl == "" {
-						timeUrl = "0"
-					}
 					break
 				}
 			}
 		}
 
 		if matchFound {
-			if newSong, err := NewYouTubeSong(username, shortUrl, timeUrl, nil); err == nil {
+			if newSong, err := NewYouTubeSong(username, shortUrl, nil); err == nil {
 				dj.client.Self.Channel.Send(fmt.Sprintf(SONG_ADDED_HTML, username, newSong.title), false)
 				if dj.queue.Len() == 1 && !dj.audioStream.IsPlaying() {
 					if err := dj.queue.CurrentSong().Download(); err == nil {
@@ -351,7 +345,7 @@ func SoundBoard(username string, argument string, lerandom bool) {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		dj.client.Self.Channel.Send(fmt.Sprintf("%s has requested an invalid soundboard clip.", username), false)
 	} else {
-		dj.audioStream.Play(fmt.Sprintf(filePath), "0")
+		dj.audioStream.Play(fmt.Sprintf(filePath))
 		if lerandom {
 			dj.client.Self.Channel.Send(fmt.Sprintf("%s has randomly played %s", username, argument), false)
 		} else {

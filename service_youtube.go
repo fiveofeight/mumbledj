@@ -30,7 +30,6 @@ type YouTubeSong struct {
 	submitter string
 	title     string
 	id        string
-	time	  string
 	filename  string
 	duration  string
 	thumbnail string
@@ -41,7 +40,7 @@ type YouTubeSong struct {
 
 // NewYouTubeSong gathers the metadata for a song extracted from a YouTube video, and returns
 // the song.
-func NewYouTubeSong(user, id string, time string, playlist *YouTubePlaylist) (*YouTubeSong, error) {
+func NewYouTubeSong(user, id string, playlist *YouTubePlaylist) (*YouTubeSong, error) {
 	var apiResponse *jsonq.JsonQuery
 	var err error
 	url := fmt.Sprintf("https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=%s&key=%s",
@@ -73,7 +72,6 @@ func NewYouTubeSong(user, id string, time string, playlist *YouTubePlaylist) (*Y
 			submitter: user,
 			title:     title,
 			id:        id,
-			time:	   time,
 			filename:  id + ".m4a",
 			duration:  durationString,
 			thumbnail: thumbnail,
@@ -106,8 +104,7 @@ func (s *YouTubeSong) Download() error {
 // Play plays the song. Once the song is playing, a notification is displayed in a text message that features the video
 // thumbnail, URL, title, duration, and submitter.
 func (s *YouTubeSong) Play() {
-	if err := dj.audioStream.Play(fmt.Sprintf("%s/.mumbledj/songs/%s.m4a", dj.homeDir, s.ID()), s.Time(), dj.queue.OnSongFinished); err != nil {
-//	if err := dj.audioStream.Play(fmt.Sprintf("%s/.mumbledj/songs/%s.m4a", dj.homeDir, s.ID()), s.youtubeTime, dj.queue.OnSongFinished); err != nil {
+	if err := dj.audioStream.Play(fmt.Sprintf("%s/.mumbledj/songs/%s.m4a", dj.homeDir, s.ID()), dj.queue.OnSongFinished); err != nil {
 		panic(err)
 	} else {
 		if s.Playlist() == nil {
@@ -196,11 +193,6 @@ func (s *YouTubeSong) SkipReached(channelUsers int) bool {
 		return true
 	}
 	return false
-}
-
-// Time returns the timecode in seconds to start playing at
-func (s *YouTubeSong) Time() string {
-	return s.time
 }
 
 // Submitter returns the name of the submitter of the YouTubeSong.

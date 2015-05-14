@@ -17,6 +17,7 @@ import (
 
 	"github.com/layeh/gopus"
 	"github.com/layeh/gumble/gumble"
+	"github.com/layeh/gumble/gumble_ffmpeg"
 	"github.com/layeh/gumble/gumbleutil"
 )
 
@@ -28,7 +29,7 @@ type mumbledj struct {
 	defaultChannel string
 	conf           DjConfig
 	queue          *SongQueue
-	audioStream    *Stream
+	audioStream    *gumble_ffmpeg.Stream
 	homeDir        string
 	playlistSkips  map[string][]string
 	cache          *SongCache
@@ -44,7 +45,7 @@ func (dj *mumbledj) OnConnect(e *gumble.ConnectEvent) {
 		fmt.Println("Channel doesn't exist or one was not provided, staying in root channel...")
 	}
 
-	if audioStream, err := New(dj.client); err == nil {
+	if audioStream, err := gumble_ffmpeg.New(dj.client); err == nil {
 		dj.audioStream = audioStream
 		dj.audioStream.Volume = dj.conf.Volume.DefaultVolume
 	} else {
