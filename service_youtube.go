@@ -15,10 +15,13 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/jsonq"
+	"github.com/layeh/gumble/gumble_ffmpeg"
 )
 
 // ------------
@@ -30,6 +33,7 @@ type YouTubeSong struct {
 	submitter string
 	title     string
 	id        string
+	offset    int
 	filename  string
 	duration  string
 	thumbnail string
@@ -40,7 +44,7 @@ type YouTubeSong struct {
 
 // NewYouTubeSong gathers the metadata for a song extracted from a YouTube video, and returns
 // the song.
-func NewYouTubeSong(user, id string, playlist *YouTubePlaylist) (*YouTubeSong, error) {
+func NewYouTubeSong(user, id, offset string, playlist *YouTubePlaylist) (*YouTubeSong, error) {
 	var apiResponse *jsonq.JsonQuery
 	var err error
 	url := fmt.Sprintf("https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=%s&key=%s",
@@ -49,29 +53,72 @@ func NewYouTubeSong(user, id string, playlist *YouTubePlaylist) (*YouTubeSong, e
 		return nil, err
 	}
 
+	var offsetDays, offsetHours, offsetMinutes, offsetSeconds int64
+	if offset != "" {
+		offsetExp := regexp.MustCompile(`t\=(?P<days>\d+d)?(?P<hours>\d+h)?(?P<minutes>\d+m)?(?P<seconds>\d+s)?`)
+		offsetMatch := offsetExp.FindStringSubmatch(offset)
+		offsetResult := make(map[string]string)
+		for i, name := range offsetExp.SubexpNames() {
+			offsetResult[name] = offsetMatch[i]
+		}
+
+		if offsetResult["days"] != "" {
+			offsetDays, _ = strconv.ParseInt(strings.TrimSuffix(offsetResult["days"], "d"), 10, 32)
+		}
+		if offsetResult["hours"] != "" {
+			offsetHours, _ = strconv.ParseInt(strings.TrimSuffix(offsetResult["hours"], "h"), 10, 32)
+		}
+		if offsetResult["minutes"] != "" {
+			offsetMinutes, _ = strconv.ParseInt(strings.TrimSuffix(offsetResult["minutes"], "m"), 10, 32)
+		}
+		if offsetResult["seconds"] != "" {
+			offsetSeconds, _ = strconv.ParseInt(strings.TrimSuffix(offsetResult["seconds"], "s"), 10, 32)
+		}
+	}
+
 	title, _ := apiResponse.String("items", "0", "snippet", "title")
 	thumbnail, _ := apiResponse.String("items", "0", "snippet", "thumbnails", "high", "url")
 	duration, _ := apiResponse.String("items", "0", "contentDetails", "duration")
 
-	var minutes, seconds int64
-	if strings.Contains(duration, "M") {
-		minutes, _ = strconv.ParseInt(duration[2:strings.Index(duration, "M")], 10, 32)
-	} else {
-		minutes = 0
+	var days, hours, minutes, seconds int64
+	timestampExp := regexp.MustCompile(`P(?P<days>\d+D)?T(?P<hours>\d+H)?(?P<minutes>\d+M)?(?P<seconds>\d+S)?`)
+	timestampMatch := timestampExp.FindStringSubmatch(duration)
+	timestampResult := make(map[string]string)
+	for i, name := range timestampExp.SubexpNames() {
+		timestampResult[name] = timestampMatch[i]
 	}
-	if strings.Contains(duration, "S") {
-		seconds, _ = strconv.ParseInt(duration[strings.Index(duration, "M")+1:len(duration)-1], 10, 32)
-	} else {
-		seconds = 0
+
+	if timestampResult["days"] != "" {
+		days, _ = strconv.ParseInt(strings.TrimSuffix(timestampResult["days"], "D"), 10, 32)
 	}
-	totalSeconds := int((minutes * 60) + seconds)
-	durationString := fmt.Sprintf("%d:%02d", minutes, seconds)
+	if timestampResult["hours"] != "" {
+		hours, _ = strconv.ParseInt(strings.TrimSuffix(timestampResult["hours"], "H"), 10, 32)
+	}
+	if timestampResult["minutes"] != "" {
+		minutes, _ = strconv.ParseInt(strings.TrimSuffix(timestampResult["minutes"], "M"), 10, 32)
+	}
+	if timestampResult["seconds"] != "" {
+		seconds, _ = strconv.ParseInt(strings.TrimSuffix(timestampResult["seconds"], "S"), 10, 32)
+	}
+
+	totalSeconds := int((days * 86400) + (hours * 3600) + (minutes * 60) + seconds)
+	var durationString string
+	if hours != 0 {
+		if days != 0 {
+			durationString = fmt.Sprintf("%d:%02d:%02d:%02d", days, hours, minutes, seconds)
+		} else {
+			durationString = fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds)
+		}
+	} else {
+		durationString = fmt.Sprintf("%d:%02d", minutes, seconds)
+	}
 
 	if dj.conf.General.MaxSongDuration == 0 || totalSeconds <= dj.conf.General.MaxSongDuration {
 		song := &YouTubeSong{
 			submitter: user,
 			title:     title,
 			id:        id,
+			offset:    int((offsetDays * 86400) + (offsetHours * 3600) + (offsetMinutes * 60) + offsetSeconds),
 			filename:  id + ".m4a",
 			duration:  durationString,
 			thumbnail: thumbnail,
@@ -104,7 +151,12 @@ func (s *YouTubeSong) Download() error {
 // Play plays the song. Once the song is playing, a notification is displayed in a text message that features the video
 // thumbnail, URL, title, duration, and submitter.
 func (s *YouTubeSong) Play() {
-	if err := dj.audioStream.Play(fmt.Sprintf("%s/.mumbledj/songs/%s.m4a", dj.homeDir, s.ID()), dj.queue.OnSongFinished); err != nil {
+	if s.offset != 0 {
+		offsetDuration, _ := time.ParseDuration(fmt.Sprintf("%ds", s.offset))
+		dj.audioStream.Offset = offsetDuration
+	}
+	dj.audioStream.Source = gumble_ffmpeg.SourceFile(fmt.Sprintf("%s/.mumbledj/songs/%s", dj.homeDir, s.Filename()))
+	if err := dj.audioStream.Play(); err != nil {
 		panic(err)
 	} else {
 		if s.Playlist() == nil {
@@ -143,6 +195,10 @@ func (s *YouTubeSong) Play() {
 			dj.client.Self.Channel.Send(fmt.Sprintf(message, s.Thumbnail(), s.ID(),
 				s.Title(), s.Duration(), s.Submitter(), s.Playlist().Title()), false)
 		}
+		go func() {
+			dj.audioStream.Wait()
+			dj.queue.OnSongFinished()
+		}()
 	}
 }
 
@@ -294,19 +350,38 @@ func NewYouTubePlaylist(user, id string) (*YouTubePlaylist, error) {
 		}
 		videoDuration, _ := durationResponse.String("items", "0", "contentDetails", "duration")
 
-		var minutes, seconds int64
-		if strings.Contains(videoDuration, "M") {
-			minutes, _ = strconv.ParseInt(videoDuration[2:strings.Index(videoDuration, "M")], 10, 32)
-		} else {
-			minutes = 0
+		var days, hours, minutes, seconds int64
+		timestampExp := regexp.MustCompile(`P(?P<days>\d+D)?T(?P<hours>\d+H)?(?P<minutes>\d+M)?(?P<seconds>\d+S)?`)
+		timestampMatch := timestampExp.FindStringSubmatch(videoDuration)
+		timestampResult := make(map[string]string)
+		for i, name := range timestampExp.SubexpNames() {
+			timestampResult[name] = timestampMatch[i]
 		}
-		if strings.Contains(videoDuration, "S") {
-			seconds, _ = strconv.ParseInt(videoDuration[strings.Index(videoDuration, "M")+1:len(videoDuration)-1], 10, 32)
-		} else {
-			seconds = 0
+
+		if timestampResult["days"] != "" {
+			days, _ = strconv.ParseInt(strings.TrimSuffix(timestampResult["days"], "D"), 10, 32)
 		}
-		totalSeconds := int((minutes * 60) + seconds)
-		durationString := fmt.Sprintf("%d:%02d", minutes, seconds)
+		if timestampResult["hours"] != "" {
+			hours, _ = strconv.ParseInt(strings.TrimSuffix(timestampResult["hours"], "H"), 10, 32)
+		}
+		if timestampResult["minutes"] != "" {
+			minutes, _ = strconv.ParseInt(strings.TrimSuffix(timestampResult["minutes"], "M"), 10, 32)
+		}
+		if timestampResult["seconds"] != "" {
+			seconds, _ = strconv.ParseInt(strings.TrimSuffix(timestampResult["seconds"], "S"), 10, 32)
+		}
+
+		totalSeconds := int((days * 86400) + (hours * 3600) + (minutes * 60) + seconds)
+		var durationString string
+		if hours != 0 {
+			if days != 0 {
+				durationString = fmt.Sprintf("%d:%02d:%02d:%02d", days, hours, minutes, seconds)
+			} else {
+				durationString = fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds)
+			}
+		} else {
+			durationString = fmt.Sprintf("%d:%02d", minutes, seconds)
+		}
 
 		if dj.conf.General.MaxSongDuration == 0 || totalSeconds <= dj.conf.General.MaxSongDuration {
 			playlistSong := &YouTubeSong{
