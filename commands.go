@@ -355,13 +355,15 @@ func SoundBoard(username string, argument string, lerandom bool) {
 		dj.client.Self.Channel.Send(fmt.Sprintf("%s has requested an invalid soundboard clip.", username), false)
 	} else {
 		dj.audioStream.Source = gumble_ffmpeg.SourceFile(fmt.Sprintf(filePath))
-		if err := dj.audioStream.Play(); err != nil {
-			panic(err)
-		}
-		if lerandom {
-			dj.client.Self.Channel.Send(fmt.Sprintf("%s has randomly played %s", username, argument), false)
-		} else {
-			dj.client.Self.Channel.Send(fmt.Sprintf("%s has requested %s", username, argument), false)
+	    if !dj.audioStream.IsPlaying() {
+			if err := dj.audioStream.Play(); err != nil {
+				panic(err)
+			}
+			if lerandom {
+				dj.client.Self.Channel.Send(fmt.Sprintf("%s has randomly played %s", username, argument), false)
+			} else {
+				dj.client.Self.Channel.Send(fmt.Sprintf("%s has requested %s", username, argument), false)
+			}
 		}
 	}
 }
