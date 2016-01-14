@@ -86,6 +86,9 @@ type DjConfig struct {
 		AdminShuffle       bool
 		AdminShuffleToggle bool
 		AdminListSongs     bool
+		AdminStop		   bool
+		AdminSoundBoard	   bool
+		AdminRandom		   bool
 	}
 	ServiceKeys struct {
 		Youtube    string
