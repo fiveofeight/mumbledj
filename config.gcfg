@@ -282,9 +282,9 @@ YouTube = ""
 SoundCloud = ""
 
 [SoundBoardList]
+#Website where you list your sound clips.
+SoundBoardSite = "http://example.com/soundboard.html"
 
 # List the filename of the sounds that you want for the !random command
 SoundList = "2sad4me"
 SoundList = "2sed4horn"
-
-SoundBoardSite = "http://example.com/soundboard.html"

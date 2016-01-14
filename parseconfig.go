@@ -95,8 +95,8 @@ type DjConfig struct {
 		SoundCloud string
 	}
 	SoundBoardList struct {
-		SoundList		  []string
 		SoundBoardSite	  string
+		SoundList		  []string
 	}
 }
 

@@ -361,7 +361,7 @@ func SoundBoard(username string, argument string, lerandom bool) {
 
 // help performs !help functionality. Displays a list of valid commands.
 func help(user *gumble.User) {
-	dj.SendPrivateMessage(user, HELP_HTML)
+	dj.SendPrivateMessage(user, fmt.Sprintf(HELP_HTML, dj.conf.SoundBoardList.SoundBoardSite))
 }
 
 // volume performs !volume functionality. Checks input value against LowestVolume and HighestVolume from
