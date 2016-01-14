@@ -17,11 +17,15 @@ import (
 // DjConfig is a Golang struct representation of mumbledj.gcfg file structure for parsing.
 type DjConfig struct {
 	General struct {
-		CommandPrefix     string
-		SkipRatio         float32
-		PlaylistSkipRatio float32
-		DefaultComment    string
-		MaxSongDuration   int
+		CommandPrefix      string
+		SkipRatio          float32
+		PlaylistSkipRatio  float32
+		DefaultComment     string
+		MaxSongDuration    int
+		MaxSongPerPlaylist int
+		AutomaticShuffleOn bool
+		AnnounceNewTrack   bool
+		PlayerCommand      string
 	}
 	Cache struct {
 		Enabled     bool
@@ -35,6 +39,7 @@ type DjConfig struct {
 	}
 	Aliases struct {
 		AddAlias               string
+		AddNextAlias           string
 		SkipAlias              string
 		SkipPlaylistAlias      string
 		AdminSkipAlias         string
@@ -54,28 +59,37 @@ type DjConfig struct {
 		NumCachedAlias         string
 		CacheSizeAlias         string
 		KillAlias              string
+		ShuffleAlias           string
+		ShuffleOnAlias         string
+		ShuffleOffAlias        string
+		ListSongsAlias         string
 	}
 	Permissions struct {
-		AdminsEnabled     bool
-		Admins            []string
-		AdminAdd          bool
-		AdminAddPlaylists bool
-		AdminSkip         bool
-		AdminStop		  bool
-		AdminSoundBoard	  bool
-		AdminRandom		  bool
-		AdminHelp         bool
-		AdminVolume       bool
-		AdminMove         bool
-		AdminReload       bool
-		AdminReset        bool
-		AdminNumSongs     bool
-		AdminNextSong     bool
-		AdminCurrentSong  bool
-		AdminSetComment   bool
-		AdminNumCached    bool
-		AdminCacheSize    bool
-		AdminKill         bool
+		AdminsEnabled      bool
+		Admins             []string
+		AdminAdd           bool
+		AdminAddNext       bool
+		AdminAddPlaylists  bool
+		AdminSkip          bool
+		AdminHelp          bool
+		AdminVolume        bool
+		AdminMove          bool
+		AdminReload        bool
+		AdminReset         bool
+		AdminNumSongs      bool
+		AdminNextSong      bool
+		AdminCurrentSong   bool
+		AdminSetComment    bool
+		AdminNumCached     bool
+		AdminCacheSize     bool
+		AdminKill          bool
+		AdminShuffle       bool
+		AdminShuffleToggle bool
+		AdminListSongs     bool
+	}
+	ServiceKeys struct {
+		Youtube    string
+		SoundCloud string
 	}
 	SoundBoardList struct {
 		SoundList		  []string

@@ -7,8 +7,8 @@
 
 package main
 
-// Message shown to users when the bot has an invalid YouTube API key.
-const INVALID_API_KEY = "MumbleDJ does not have a valid YouTube API key."
+// Message shown to users when the bot has an invalid API key.
+const INVALID_API_KEY = "MumbleDJ does not have a valid %s API key."
 
 // Message shown to users when they do not have permission to execute a command.
 const NO_PERMISSION_MSG = "You do not have permission to execute that command."
@@ -26,7 +26,7 @@ const CHANNEL_DOES_NOT_EXIST_MSG = "The channel you specified does not exist."
 const INVALID_URL_MSG = "The URL you submitted does not match the required format."
 
 // Message shown to users when they attempt to add a video that's too long
-const VIDEO_TOO_LONG_MSG = "The video you submitted exceeds the duration allowed by the server."
+const TRACK_TOO_LONG_MSG = "The %s you submitted exceeds the duration allowed by the server."
 
 // Message shown to users when they attempt to perform an action on a song when
 // no song is playing.
@@ -54,10 +54,10 @@ const ADMIN_SONG_SKIP_MSG = "An admin has decided to skip the current song."
 const ADMIN_PLAYLIST_SKIP_MSG = "An admin has decided to skip the current playlist."
 
 // Message shown to users when the audio for a video could not be downloaded.
-const AUDIO_FAIL_MSG = "The audio download for this video failed. YouTube has likely not generated the audio files for this video yet. Skipping to the next song!"
+const AUDIO_FAIL_MSG = "The audio download for this video failed. %s has likely not generated the audio files for this %s yet. Skipping to the next song!"
 
-// Message shown to users when they supply a YouTube URL that does not contain a valid ID.
-const INVALID_YOUTUBE_ID_MSG = "The YouTube URL you supplied did not contain a valid YouTube ID."
+// Message shown to users when they supply an URL that does not contain a valid ID.
+const INVALID_ID_MSG = "The %s URL you supplied did not contain a valid ID."
 
 // Message shown to user when they successfully update the bot's comment.
 const COMMENT_UPDATED_MSG = "The comment for the bot has successfully been updated."
@@ -71,6 +71,24 @@ const CACHE_SIZE_MSG = "The cache is currently %g MB in size."
 // Message shown to user when they attempt to issue a cache-related command when caching is not enabled.
 const CACHE_NOT_ENABLED_MSG = "The cache is not currently enabled."
 
+// Message shown to user when they attempt to shuffle the queue and it has less than 2 elements.
+const CANT_SHUFFLE_MSG = "Can't shuffle the queue if there is less than 2 songs."
+
+// Message shown to users when the songqueue has been successfully shuffled.
+const SHUFFLE_SUCCESS_MSG = "The current songqueue has been successfully shuffled by <b>%s</b> (starting from next song)."
+
+// Message shown to users when automatic shuffle is activated
+const SHUFFLE_ON_MESSAGE = "<b>%s</b> has turned automatic shuffle on."
+
+// Message shown to users when automatic shuffle is deactivated
+const SHUFFLE_OFF_MESSAGE = "<b>%s</b> has turned automatic shuffle off."
+
+// Message shown to user when they attempt to enable automatic shuffle while it's already activated
+const SHUFFLE_ACTIVATED_ERROR_MESSAGE = "Automatic shuffle is already activated."
+
+// Message shown to user when they attempt to disable automatic shuffle while it's already deactivated
+const SHUFFLE_DEACTIVATED_ERROR_MESSAGE = "Automatic shuffle is already deactivated."
+
 // Message shown to channel when a song is added to the queue by a user.
 const SONG_ADDED_HTML = `
 	<b>%s</b> has added "%s" to the queue.
@@ -79,6 +97,16 @@ const SONG_ADDED_HTML = `
 // Message shown to channel when a playlist is added to the queue by a user.
 const PLAYLIST_ADDED_HTML = `
 	<b>%s</b> has added the playlist "%s" to the queue.
+`
+
+// Message shown to channel when a song is added to the queue by a user after the current song.
+const NEXT_SONG_ADDED_HTML = `
+	<b>%s</b> has added "%s" to the queue after the current song.
+`
+
+// Message shown to channel when a playlist is added to the queue by a user after the current song.
+const NEXT_PLAYLIST_ADDED_HTML = `
+	<b>%s</b> has added the playlist "%s" to the queue after the current song.
 `
 
 // Message shown to channel when a song has been skipped.
@@ -95,7 +123,7 @@ const PLAYLIST_SKIPPED_HTML = `
 const HELP_HTML = `<br/>
 	<b>User Commands:</b>
 	<p><b>!help</b> - Displays this help.</p>
-	<p><b>!yt</b> - Adds a YouTube video to queue.</p>
+	<p><b>!add</b> - Adds songs/playlists to queue.</p>
 	<p><b>!volume</b> - Either tells you the current volume or sets it to a new volume.</p>
 	<p><b>!skip</b> - Casts a vote to skip the current song</p>
 	<p><b>!stop</b> - Stops the currently playing sound.
@@ -103,13 +131,18 @@ const HELP_HTML = `<br/>
 	<p><b>!random</b> - Plays a random clip from the soundboard.</p>
 	<p> <b>!skipplaylist</b> - Casts a vote to skip over the current playlist.</p>
 	<p><b>!numsongs</b> - Shows how many songs are in queue.</p>
+	<p><b>!listsongs</b> - Lists the songs in queue.</p>
 	<p><b>!nextsong</b> - Shows the title and submitter of the next queue item if it exists.</p>
 	<p><b>!currentsong</b> - Shows the title and submitter of the song currently playing.</p>
 	<p style="-qt-paragraph-type:empty"><br/></p>
 	<p><b>Admin Commands:</b></p>
+	<p><b>!addnext</b> - Adds songs/playlists to queue after the current song.</p>
 	<p><b>!reset</b> - An admin command that resets the song queue. </p>
 	<p><b>!forceskip</b> - An admin command that forces a song skip. </p>
 	<p><b>!forceskipplaylist</b> - An admin command that forces a playlist skip. </p>
+	<p><b>!shuffle</b> - An admin command that shuffles the current queue. </p>
+	<p><b>!shuffleon</b> - An admin command that enables auto shuffling.</p>
+  	<p><b>!shuffleoff</b> - An admin command that disables auto shuffling.</p>
 	<p><b>!move </b>- Moves MumbleDJ into channel if it exists.</p>
 	<p><b>!reload</b> - Reloads mumbledj.gcfg configuration settings.</p>
 	<p><b>!setcomment</b> - Sets the comment for the bot.</p>
@@ -172,4 +205,9 @@ const CURRENT_SONG_HTML = `
 // playlist is playing.
 const CURRENT_SONG_PLAYLIST_HTML = `
 	The song currently playing is "%s", added <b>%s</b> from the playlist "%s".
+`
+
+// Message shown to user when the listsongs command is issued
+const SONG_LIST_HTML = `
+	<br>%d: "%s", added by <b>%s</b>.</br>
 `

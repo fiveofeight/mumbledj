@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/layeh/gopus"
@@ -27,7 +29,7 @@ type mumbledj struct {
 	config         gumble.Config
 	client         *gumble.Client
 	keepAlive      chan bool
-	defaultChannel string
+	defaultChannel []string
 	conf           DjConfig
 	queue          *SongQueue
 	audioStream    *gumble_ffmpeg.Stream
@@ -40,14 +42,20 @@ type mumbledj struct {
 // via commandline args, and moves to root channel if the channel does not exist. The current
 // user's homedir path is stored, configuration is loaded, and the audio stream is set up.
 func (dj *mumbledj) OnConnect(e *gumble.ConnectEvent) {
-	if dj.client.Channels.Find(dj.defaultChannel) != nil {
-		dj.client.Self.Move(dj.client.Channels.Find(dj.defaultChannel))
+	if dj.client.Channels.Find(dj.defaultChannel...) != nil {
+		dj.client.Self.Move(dj.client.Channels.Find(dj.defaultChannel...))
 	} else {
 		fmt.Println("Channel doesn't exist or one was not provided, staying in root channel...")
 	}
 
 	dj.audioStream = gumble_ffmpeg.New(dj.client)
 	dj.audioStream.Volume = dj.conf.Volume.DefaultVolume
+
+	if dj.conf.General.PlayerCommand == "ffmpeg" || dj.conf.General.PlayerCommand == "avconv" {
+		dj.audioStream.Command = dj.conf.General.PlayerCommand
+	} else {
+		fmt.Println("Invalid PlayerCommand configuration value. Only \"ffmpeg\" and \"avconv\" are supported. Defaulting to ffmpeg...")
+	}
 
 	dj.client.AudioEncoder.SetApplication(gopus.Audio)
 
@@ -99,7 +107,7 @@ func (dj *mumbledj) OnTextMessage(e *gumble.TextMessageEvent) {
 func (dj *mumbledj) OnUserChange(e *gumble.UserChangeEvent) {
 	if e.Type.Has(gumble.UserChangeDisconnected) {
 		if dj.audioStream.IsPlaying() {
-			if dj.queue.CurrentSong().Playlist() != nil {
+			if !isNil(dj.queue.CurrentSong().Playlist()) {
 				dj.queue.CurrentSong().Playlist().RemoveSkip(e.User.Name)
 			}
 			dj.queue.CurrentSong().RemoveSkip(e.User.Name)
@@ -129,13 +137,42 @@ func (dj *mumbledj) SendPrivateMessage(user *gumble.User, message string) {
 	}
 }
 
-// PerformStartupChecks checks the MumbleDJ installation to ensure proper usage.
-func PerformStartupChecks() {
-	if os.Getenv("YOUTUBE_API_KEY") == "" {
-		fmt.Printf("You do not have a YouTube API key defined in your environment variables.\n" +
-			"Please see the following link for info on how to fix this: https://github.com/matthieugrieger/mumbledj#youtube-api-keys\n")
+// CheckAPIKeys enables the services with API keys in the environment varaibles
+func CheckAPIKeys() {
+	anyDisabled := false
+
+	// Checks YouTube API key
+	if dj.conf.ServiceKeys.Youtube == "" {
+		anyDisabled = true
+		fmt.Printf("The youtube service has been disabled as you do not have a YouTube API key defined in your config file!\n")
+	} else {
+		services = append(services, YouTube{})
+	}
+
+	// Checks Soundcloud API key
+	if dj.conf.ServiceKeys.SoundCloud == "" {
+		anyDisabled = true
+		fmt.Printf("The soundcloud service has been disabled as you do not have a Soundcloud API key defined in your config file!\n")
+	} else {
+		services = append(services, SoundCloud{})
+	}
+
+	// Checks to see if any service was disabled
+	if anyDisabled {
+		fmt.Printf("Please see the following link for info on how to enable missing services: https://github.com/matthieugrieger/mumbledj\n")
+	}
+
+	// Exits application if no services are enabled
+	if services == nil {
+		fmt.Printf("No services are enabled, and thus closing\n")
 		os.Exit(1)
 	}
+}
+
+// isNil checks to see if an object is nil
+func isNil(a interface{}) bool {
+	defer func() { recover() }()
+	return a == nil || reflect.ValueOf(a).IsNil()
 }
 
 // dj variable declaration. This is done outside of main() to allow global use.
@@ -150,8 +187,6 @@ var dj = mumbledj{
 // args, sets up the gumble client and its listeners, and then connects to the server.
 func main() {
 
-	PerformStartupChecks()
-
 	if currentUser, err := user.Current(); err == nil {
 		dj.homeDir = currentUser.HomeDir
 	}
@@ -162,7 +197,7 @@ func main() {
 		panic(err)
 	}
 
-	var address, port, username, password, channel, pemCert, pemKey string
+	var address, port, username, password, channel, pemCert, pemKey, accesstokens string
 	var insecure bool
 
 	flag.StringVar(&address, "server", "localhost", "address for Mumble server")
@@ -172,6 +207,7 @@ func main() {
 	flag.StringVar(&channel, "channel", "root", "default channel for MumbleDJ")
 	flag.StringVar(&pemCert, "cert", "", "path to user PEM certificate for MumbleDJ")
 	flag.StringVar(&pemKey, "key", "", "path to user PEM key for MumbleDJ")
+	flag.StringVar(&accesstokens, "accesstokens", "", "list of access tokens for channel auth")
 	flag.BoolVar(&insecure, "insecure", false, "skip certificate checking")
 	flag.Parse()
 
@@ -179,6 +215,7 @@ func main() {
 		Username: username,
 		Password: password,
 		Address:  address + ":" + port,
+		Tokens:   strings.Split(accesstokens, " "),
 	}
 	dj.client = gumble.NewClient(&dj.config)
 
@@ -197,7 +234,9 @@ func main() {
 		}
 	}
 
-	dj.defaultChannel = channel
+	dj.defaultChannel = strings.Split(channel, "/")
+
+	CheckAPIKeys()
 
 	dj.client.Attach(gumbleutil.Listener{
 		Connect:     dj.OnConnect,
